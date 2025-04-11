@@ -1,0 +1,33 @@
+version: '3.3'
+
+services:
+  yolo-detector:
+    image: human-yolo:latest  # Use pre-built image instead of building
+    container_name: yolo-detector
+    network_mode: "host"
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./models:/app/models:ro  # Read-only mount for models
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "3"
+
+  activemq-1:
+    image: apache/activemq-classic:5.18.7
+    container_name: activemq-1
+    ports:
+      - "8085:1883"    # MQTT port (plain)
+      - "8022:8161"
+    environment:
+      - ACTIVEMQ_ADMIN_LOGIN=admin
+      - ACTIVEMQ_ADMIN_PASSWORD=admin
+
+  mediamtx:
+    image: devarcscontainerregistry.azurecr.io/rtsp-server:v0.22.2
+    container_name: mediamtx-rtsp
+    network_mode: "host"
+    restart: unless-stopped
