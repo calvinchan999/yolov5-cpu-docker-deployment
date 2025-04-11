@@ -35,18 +35,18 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 MQTT_ENABLED = os.getenv('MQTT_ENABLED', 'true').lower() == 'true'
 MQTT_BROKER = os.getenv('MQTT_BROKER', '127.0.0.1')
 MQTT_PORT = int(os.getenv('MQTT_PORT', '8883'))
-MQTT_TOPIC = os.getenv('MQTT_TOPIC', 'rvautotech/fobo/object/detection/inference')
-MQTT_USERNAME = os.getenv('MQTT_USERNAME', 'rv')
-MQTT_PASSWORD = os.getenv('MQTT_PASSWORD', 'RV@ut0techhk')
+MQTT_TOPIC = os.getenv('MQTT_TOPIC', 'object/detection/inference')
+MQTT_USERNAME = os.getenv('MQTT_USERNAME', 'test')
+MQTT_PASSWORD = os.getenv('MQTT_PASSWORD', 'test')
 MQTT_PUBLISH_INTERVAL = int(os.getenv('MQTT_PUBLISH_INTERVAL', '1'))
 MQTT_USE_SSL = os.getenv('MQTT_USE_SSL', 'true').lower() == 'true'
 
 ROBOT_ID = os.getenv('ROBOT_ID', '418.1')
 
 # RTMP Configuration
-RTMP_URL = os.getenv('RTMP_URL', 'rtmp://127.0.0.1:1935/RV-ROBOT-418.1')
+RTMP_URL = os.getenv('RTMP_URL', 'rtmp://127.0.0.1:1935/hihi')
 # RTSP Configuration
-RTSP_URL = os.getenv('RTSP_URL', 'rtsp://admin:rvautotech2021@192.168.7.65:554/Streaming/Channels/101')
+RTSP_URL = os.getenv('RTSP_URL', 'rtsp://admin:test@169.254.89.235:554/Streaming/Channels/101')
 FPS = int(os.getenv('FPS', '10'))
 WIDTH = int(os.getenv('WIDTH', '640'))
 HEIGHT = int(os.getenv('HEIGHT', '360'))
