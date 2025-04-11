@@ -472,8 +472,21 @@ def run(
                            1, (0, 255, 0), 2, cv2.LINE_AA)
 
                 if len(det):
-                    # Rescale boxes from img_size to im0 size
-                    det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
+                    # Convert to float64 for higher precision
+                    det = det.to(torch.float64)
+                    
+                    # Calculate scaling factors with higher precision
+                    gain = torch.tensor([im0.shape[1] / im.shape[2], 
+                                      im0.shape[0] / im.shape[3],
+                                      im0.shape[1] / im.shape[2],
+                                      im0.shape[0] / im.shape[3]], 
+                                      dtype=torch.float64, device=device)
+                    
+                    # Scale boxes with higher precision
+                    det[:, :4] = det[:, :4] * gain
+                    
+                    # Convert back to float32 for drawing
+                    det = det.to(torch.float32)
 
                     # Draw boxes
                     for *xyxy, conf, cls in reversed(det):
