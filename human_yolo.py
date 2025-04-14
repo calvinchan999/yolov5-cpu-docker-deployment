@@ -43,6 +43,14 @@ MQTT_USE_SSL = os.getenv('MQTT_USE_SSL', 'true').lower() == 'true'
 
 ROBOT_ID = os.getenv('ROBOT_ID', '418.1')
 
+# YOLO Configuration
+YOLO_WEIGHTS = os.getenv('YOLO_WEIGHTS', 'yolov5n.pt')
+YOLO_CONF_THRES = float(os.getenv('YOLO_CONF_THRES', '0.30'))
+YOLO_IOU_THRES = float(os.getenv('YOLO_IOU_THRES', '0.35'))
+YOLO_MAX_DET = int(os.getenv('YOLO_MAX_DET', '20'))
+YOLO_CLASSES = int(os.getenv('YOLO_CLASSES', '0'))
+YOLO_AGNOSTIC_NMS= os.getenv('YOLO_AGNOSTIC_NMS', 'true').lower == 'true'
+
 # RTMP Configuration
 RTMP_URL = os.getenv('RTMP_URL', 'rtmp://127.0.0.1:1935/hihi')
 # RTSP Configuration
@@ -70,6 +78,12 @@ logging.info(f"RTMP_URL: {RTMP_URL}")
 logging.info(f"RTSP_URL: {RTSP_URL}")
 logging.info(f"FPS: {FPS}")
 logging.info(f"PROCESS_WIDTH x PROCESS_HEIGHT: {PROCESS_WIDTH}x{PROCESS_HEIGHT}")
+logging.info(f"YOLO_WEIGHTS: {YOLO_WEIGHTS}")
+logging.info(f"YOLO_CONF_THRES: {YOLO_CONF_THRES}")
+logging.info(f"YOLO_IOU_THRES: {YOLO_IOU_THRES}")
+logging.info(f"YOLO_MAX_DET: {YOLO_MAX_DET}")
+logging.info(f"YOLO_CLASSES: {YOLO_CLASSES}")
+logging.info(f"YOLO_AGNOSTIC_NMS: {YOLO_AGNOSTIC_NMS}")
 
 class MQTTClient:
     def __init__(self, broker, port, username, password):
@@ -80,13 +94,13 @@ class MQTTClient:
         self.username = username
         self.password = password
         self.connected = False
-        
+
         # Set up callbacks
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_publish = self.on_publish
         self.client.on_log = self.on_log
-        
+
         # Enable automatic reconnection
         self.client.reconnect_delay_set(min_delay=1, max_delay=30)
 
@@ -125,7 +139,7 @@ class MQTTClient:
             if self.username and self.password:
                 self.client.username_pw_set(self.username, self.password)
                 logging.info("MQTT credentials configured")
-            
+
             # Configure SSL/TLS if enabled
             if MQTT_USE_SSL:
                 logging.info("Configuring MQTT with SSL/TLS")
@@ -141,31 +155,31 @@ class MQTTClient:
                     raise
             else:
                 logging.info("Using MQTT without SSL/TLS")
-            
+
             # Connect to broker
             logging.info(f"Attempting to connect to MQTT broker at {self.broker}:{self.port}")
             connect_result = self.client.connect(self.broker, self.port, keepalive=60)
             if connect_result != 0:
                 logging.error(f"Initial MQTT connection failed with result code: {connect_result}")
                 return False
-            
+
             # Start the loop in a background thread
             self.client.loop_start()
-            
+
             # Wait for connection to be established
             timeout = 10
             start_time = time.time()
             while not self.connected and (time.time() - start_time) < timeout:
                 time.sleep(0.1)
-            
+
             if not self.connected:
                 logging.error("Failed to connect to MQTT broker within timeout period")
                 self.client.loop_stop()
                 return False
-            
+
             logging.info("MQTT client successfully connected and ready")
             return True
-                
+
         except Exception as e:
             logging.error(f"Failed to connect to MQTT broker: {str(e)}")
             self.connected = False
@@ -194,13 +208,13 @@ class MQTTClient:
                 qos=1,
                 retain=False
             )
-            
+
             if result.rc != mqtt.MQTT_ERR_SUCCESS:
                 logging.error(f"Failed to publish message: {mqtt.error_string(result.rc)}")
             else:
                 result.wait_for_publish()  # Wait for message to be published
                 logging.info(f"Published MQTT message: {json.dumps(message)}")
-                
+
         except Exception as e:
             logging.error(f"Failed to publish MQTT message: {str(e)}")
 
@@ -295,17 +309,17 @@ class HeadlessVideoStream:
         self.img_size = img_size
         self.stride = stride
         self.transforms = transforms
-        
+
         # Initialize video capture with optimized buffer size
         self.cap = cv2.VideoCapture(self.source)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer size
         assert self.cap.isOpened(), f'Failed to open {self.source}'
-        
+
         # Get video properties
         self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
+
         # Initialize frame reading thread
         self.thread = threading.Thread(target=self._update, daemon=True)
         self.frame_queue = queue.Queue(maxsize=2)  # Reduced queue size for lower latency
@@ -318,7 +332,7 @@ class HeadlessVideoStream:
             if not ret:
                 self.stop()
                 break
-                
+
             # Clear queue and put new frame
             while not self.frame_queue.empty():
                 try:
@@ -346,23 +360,23 @@ class HeadlessVideoStream:
 
 @smart_inference_mode()
 def run(
-    weights='yolov5m.pt',
+    weights=YOLO_WEIGHTS,
     source=RTSP_URL,
     imgsz=(PROCESS_WIDTH, PROCESS_HEIGHT),
-    conf_thres=0.30,
-    iou_thres=0.35,
-    max_det=20,
+    conf_thres=YOLO_CONF_THRES,
+    iou_thres=YOLO_IOU_THRES,
+    max_det=YOLO_MAX_DET,
     device='cpu',
-    classes=0,
-    agnostic_nms=False,
+    classes=YOLO_CLASSES,
+    agnostic_nms=YOLO_AGNOSTIC_NMS,
     mqtt_client=None
 ):
     import torch
     import torch.multiprocessing as mp
-    
+
     # Initialize
     device = select_device(device)
-    
+
     # Load model
     model = DetectMultiBackend(weights, device=device)
     stride, names, pt = model.stride, model.names, model.pt
@@ -412,7 +426,7 @@ def run(
                 raise Exception("Failed to read frame from RTSP stream")
 
             current_time = time.time()
-            
+
             # Process every frame (removed frame skipping)
             frame_count += 1
 
@@ -468,23 +482,23 @@ def run(
                 annotator = Annotator(im0, line_width=2)
 
                 # Display count on top left
-                cv2.putText(im0, f'Count: {len(det)}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
+                cv2.putText(im0, f'Count: {len(det)}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
                            1, (0, 255, 0), 2, cv2.LINE_AA)
 
                 if len(det):
                     # Convert to float64 for higher precision
                     det = det.to(torch.float64)
-                    
+
                     # Calculate scaling factors with higher precision
-                    gain = torch.tensor([im0.shape[1] / im.shape[2], 
+                    gain = torch.tensor([im0.shape[1] / im.shape[2],
                                       im0.shape[0] / im.shape[3],
                                       im0.shape[1] / im.shape[2],
-                                      im0.shape[0] / im.shape[3]], 
+                                      im0.shape[0] / im.shape[3]],
                                       dtype=torch.float64, device=device)
-                    
+
                     # Scale boxes with higher precision
                     det[:, :4] = det[:, :4] * gain
-                    
+
                     # Convert back to float32 for drawing
                     det = det.to(torch.float32)
 
