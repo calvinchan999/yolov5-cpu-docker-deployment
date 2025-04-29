@@ -68,6 +68,9 @@ MAX_BATCH_SIZE = int(os.getenv('MAX_BATCH_SIZE', '1'))
 NUM_THREADS = int(os.getenv('NUM_THREADS', '4'))
 ENABLE_OPTIMIZATION = os.getenv('ENABLE_OPTIMIZATION', 'true').lower() == 'true'
 
+# Add after the configuration variables
+DETECTION_PEOPLE = 0  # Global variable to track detection state
+
 # Log all configuration values
 logging.info("Configuration:")
 logging.info(f"MQTT_BROKER: {MQTT_BROKER}")
@@ -377,6 +380,8 @@ def run(
     # Initialize
     device = select_device(device)
 
+    global DETECTION_PEOPLE  # Add global declaration
+
     # Load model
     model = DetectMultiBackend(weights, device=device)
     stride, names, pt = model.stride, model.names, model.pt
@@ -473,10 +478,13 @@ def run(
 
             # Process predictions
             for i, det in enumerate(pred):
-                if mqtt_client and mqtt_client.connected and current_time - last_publish_time >= MQTT_PUBLISH_INTERVAL:
-                    if len(det) > 0:
-                        mqtt_client.publish_detection(len(det))
-                    last_publish_time = current_time
+                detection_count = len(det)
+                
+                if DETECTION_PEOPLE != detection_count:
+                    mqtt_client.publish_detection(detection_count)
+                    DETECTION_PEOPLE = detection_count
+                    logging.info(f"State change: {DETECTION_PEOPLE} people detected")
+
 
                 im0 = im0s[i].copy()
                 annotator = Annotator(im0, line_width=2)
